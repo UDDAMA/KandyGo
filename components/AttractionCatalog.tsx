@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import type { Attraction, Category } from '@/lib/types';
 import AttractionCard from '@/components/AttractionCard';
+import ItineraryDurationProgress from '@/components/ItineraryDurationProgress';
 
 interface AttractionCatalogProps {
   attractions: Attraction[];
@@ -66,7 +67,7 @@ export default function AttractionCatalog({
   };
 
   return (
-    <div style={{ padding: '2.5rem 0 4rem' }}>
+    <div style={{ padding: '2.5rem 0 7.5rem' }}>
       <div className="container">
         {/* Header */}
         <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
@@ -97,6 +98,9 @@ export default function AttractionCatalog({
             stops to your custom 1-day itinerary.
           </p>
         </div>
+
+        {/* Itinerary Duration Progress Bar */}
+        <ItineraryDurationProgress />
 
         {/* Search & Filter Controls */}
         <div

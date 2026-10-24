@@ -1,8 +1,17 @@
 // app/layout.tsx
 import type { Metadata } from 'next';
+import { Playfair_Display } from 'next/font/google';
+import Link from 'next/link';
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import Navbar from '@/components/Navbar';
+import RouteLoadingIndicator from '@/components/RouteLoadingIndicator';
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-playfair',
+});
 
 export const metadata: Metadata = {
   title: 'KandyGo — Local Tourist Day-Visit Planner for Kandy, Sri Lanka',
@@ -16,60 +25,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={playfair.variable}>
       <body>
+        <RouteLoadingIndicator />
         <Navbar />
         <main>{children}</main>
-        <footer
-          style={{
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid var(--border)',
-            padding: '2.5rem 0 2rem',
-            marginTop: 'auto',
-          }}
-        >
-          <div
-            className="container"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '1.5rem',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: '1.1rem',
-                  fontWeight: 800,
-                  color: 'var(--primary)',
-                }}
-              >
-                Kandy<span style={{ color: 'var(--accent)' }}>Go</span>
-              </div>
-              <p
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--text-muted)',
-                  marginTop: '0.25rem',
-                }}
-              >
-                Kandy Local Day-Visit Planner · University Group Project (ITE2953)
-              </p>
+        <footer className="footer-wrap">
+          <div className="container footer-container">
+            {/* Left side: Exactly 3 lines */}
+            <div className="footer-left">
+              <div className="footer-line">ITE2953 - Programming Group Project 25S2</div>
+              <div className="footer-line">E2410553</div>
+              <div className="footer-line">&copy; 2026</div>
             </div>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                textAlign: 'right',
-              }}
-            >
-              <p>Built with Next.js, React, Supabase PostgreSQL, and Leaflet / OSM.</p>
-              <p style={{ marginTop: '0.25rem' }}>
-                Featuring the 10 iconic attractions in and around Kandy, Sri Lanka.
-              </p>
-            </div>
+
+            {/* Right side: Only About and Admin links */}
+            <nav className="footer-nav" aria-label="Footer Navigation">
+              <Link href="/about" className="footer-link">
+                About
+              </Link>
+              <Link href="/admin" className="footer-link">
+                Admin
+              </Link>
+            </nav>
           </div>
         </footer>
       </body>

@@ -146,6 +146,56 @@ export default async function AttractionDetailPage({ params }: PageProps) {
           </h1>
         </div>
 
+        {/* Attraction Imagery Showcase (if images exist) */}
+        {(attraction.image_url || attraction.secondary_image_url) && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                attraction.image_url && attraction.secondary_image_url
+                  ? 'repeat(auto-fit, minmax(280px, 1fr))'
+                  : '1fr',
+              gap: '1.25rem',
+              marginBottom: '2.5rem',
+            }}
+          >
+            {attraction.image_url && (
+              <div
+                className="card"
+                style={{
+                  height: '320px',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: 'var(--shadow-md)',
+                }}
+              >
+                <img
+                  src={attraction.image_url}
+                  alt={attraction.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+            {attraction.secondary_image_url && (
+              <div
+                className="card"
+                style={{
+                  height: '320px',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: 'var(--shadow-md)',
+                }}
+              >
+                <img
+                  src={attraction.secondary_image_url}
+                  alt={`${attraction.name} (Alternative view)`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Two-Column Responsive Layout */}
         <div
           style={{

@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import type { Category, Attraction } from '@/lib/types';
+import ImageUploadControl from '@/components/ImageUploadControl';
 
 interface AttractionFormProps {
   categories: Category[];
@@ -282,6 +283,51 @@ export default function AttractionForm({
             defaultValue={initialAttraction?.distance_km ?? ''}
             placeholder="e.g. 0.9"
             className="input"
+          />
+        </div>
+      </div>
+
+      {/* Attraction Imagery (Supabase Storage) */}
+      <div
+        style={{
+          borderTop: '1px solid var(--border)',
+          paddingTop: '1.5rem',
+          marginTop: '0.5rem',
+        }}
+      >
+        <div style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary-text)', marginBottom: '0.25rem' }}>
+            Attraction Imagery (Supabase Storage)
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Upload destination photography directly to the <code>kandygo-attraction-images</code> bucket.
+            The primary image displays by default; the secondary image crossfades on card hover.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
+          <ImageUploadControl
+            label="Main Image (Default)"
+            name="image_url"
+            slot="main"
+            initialUrl={initialAttraction?.image_url}
+            attractionId={initialAttraction?.id}
+            helpText="Displayed on attraction cards & detail page"
+          />
+
+          <ImageUploadControl
+            label="Secondary Image (Hover Crossfade)"
+            name="secondary_image_url"
+            slot="secondary"
+            initialUrl={initialAttraction?.secondary_image_url}
+            attractionId={initialAttraction?.id}
+            helpText="Smooth crossfade transition on card hover"
           />
         </div>
       </div>

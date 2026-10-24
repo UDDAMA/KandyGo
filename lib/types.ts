@@ -23,6 +23,7 @@ export interface Attraction {
   longitude: number;
   distance_km: number | null;
   image_url: string | null;
+  secondary_image_url?: string | null; // Optional secondary image for hover crossfade
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null; // null if active; timestamp if in Recycle Bin
