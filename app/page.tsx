@@ -122,7 +122,7 @@ export default async function HomePage() {
               gap: '1.75rem',
             }}
           >
-            <div className="card" style={{ padding: '2rem' }}>
+            <div className="card card-interactive" style={{ padding: '2rem' }}>
               <div
                 style={{
                   width: '3rem',
@@ -147,7 +147,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="card" style={{ padding: '2rem' }}>
+            <div className="card card-interactive" style={{ padding: '2rem' }}>
               <div
                 style={{
                   width: '3rem',
@@ -172,7 +172,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="card" style={{ padding: '2rem' }}>
+            <div className="card card-interactive" style={{ padding: '2rem' }}>
               <div
                 style={{
                   width: '3rem',
@@ -243,7 +243,7 @@ export default async function HomePage() {
               {featuredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="card"
+                  className="card card-interactive"
                   style={{
                     padding: '1.75rem',
                     display: 'flex',

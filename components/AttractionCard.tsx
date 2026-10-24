@@ -35,7 +35,7 @@ export default function AttractionCard({ attraction, onNotice }: AttractionCardP
 
   return (
     <div
-      className="card"
+      className="card card-interactive"
       style={{
         display: 'flex',
         flexDirection: 'column',
