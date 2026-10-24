@@ -8,24 +8,16 @@ export default function Navbar() {
   const pathname = usePathname();
   const { count, isLoaded } = usePlan();
 
-  const navLinks = [
+  const navLinks: { label: string; href: string; badge?: number | null }[] = [
     { label: 'Home', href: '/' },
     { label: 'Attractions', href: '/attractions' },
     { label: 'My Plan', href: '/plan', badge: isLoaded && count > 0 ? count : null },
   ];
 
+  const isAdminActive = pathname.startsWith('/admin');
+
   return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
+    <header className="navbar-header">
       <div
         className="container"
         style={{
@@ -36,30 +28,8 @@ export default function Navbar() {
         }}
       >
         {/* Brand */}
-        <Link
-          href="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.65rem',
-            textDecoration: 'none',
-          }}
-        >
-          <div
-            style={{
-              width: '2.4rem',
-              height: '2.4rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '1.15rem',
-              boxShadow: '0 2px 6px rgba(27, 67, 50, 0.3)',
-            }}
-          >
+        <Link href="/" className="nav-brand" aria-label="KandyGo Homepage">
+          <div className="nav-brand-icon">
             K
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -75,6 +45,7 @@ export default function Navbar() {
               Kandy<span style={{ color: 'var(--accent)' }}>Go</span>
             </span>
             <span
+              className="nav-brand-subtitle"
               style={{
                 fontSize: '0.68rem',
                 color: 'var(--text-muted)',
@@ -100,35 +71,14 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.5rem 0.9rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.925rem',
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? 'var(--primary)' : 'var(--text-main)',
-                  backgroundColor: isActive ? 'var(--primary-subtle)' : 'transparent',
-                  transition: 'var(--transition)',
-                }}
+                className={`nav-link ${isActive ? 'active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <span>{link.label}</span>
-                {link.badge !== null && (
+                {typeof link.badge === 'number' && link.badge > 0 && (
                   <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: '1.25rem',
-                      height: '1.25rem',
-                      padding: '0 0.35rem',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: 'var(--accent)',
-                      color: '#ffffff',
-                    }}
+                    className="nav-badge"
+                    aria-label={`${link.badge} items in plan`}
                   >
                     {link.badge}
                   </span>
@@ -148,11 +98,8 @@ export default function Navbar() {
 
           <Link
             href="/admin"
-            className="btn btn-sm btn-secondary"
-            style={{
-              fontSize: '0.8rem',
-              padding: '0.4rem 0.75rem',
-            }}
+            className={`nav-admin-btn ${isAdminActive ? 'active' : ''}`}
+            aria-current={isAdminActive ? 'page' : undefined}
           >
             Admin
           </Link>
