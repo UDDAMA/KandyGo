@@ -64,6 +64,10 @@ export function usePlan() {
   // Add attraction to plan (Duplicate prevention)
   const addToPlan = useCallback(
     (attraction: Attraction | PlanItem): { success: boolean; message: string } => {
+      if (attraction.deleted_at) {
+        return { success: false, message: "This attraction is unavailable and cannot be added to your itinerary." };
+      }
+
       if (items.some((i) => i.id === attraction.id)) {
         return { success: false, message: 'Attraction is already in your itinerary.' };
       }

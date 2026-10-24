@@ -47,8 +47,12 @@ CREATE TABLE IF NOT EXISTS public.attractions (
   distance_km             NUMERIC(5, 2),     -- straight-line km from Kandy city centre
   image_url               TEXT,              -- null until an image is provided
   created_at              TIMESTAMPTZ    DEFAULT NOW(),
-  updated_at              TIMESTAMPTZ    DEFAULT NOW()
+  updated_at              TIMESTAMPTZ    DEFAULT NOW(),
+  deleted_at              TIMESTAMPTZ    DEFAULT NULL  -- null means active; timestamp indicates in Recycle Bin
 );
+
+-- Index on deleted_at for fast public and recycle bin queries
+CREATE INDEX IF NOT EXISTS idx_attractions_deleted_at ON public.attractions(deleted_at);
 
 -- Ensure UNIQUE constraint on attractions(name) if the table was previously created without it
 DO $$
@@ -130,15 +134,24 @@ CREATE POLICY "admin_delete_categories"
 
 -- 2. Attractions Policies
 DROP POLICY IF EXISTS "public_read_attractions" ON public.attractions;
+DROP POLICY IF EXISTS "anon_read_attractions" ON public.attractions;
+DROP POLICY IF EXISTS "authenticated_read_attractions" ON public.attractions;
 DROP POLICY IF EXISTS "admin_write_attractions" ON public.attractions;
 DROP POLICY IF EXISTS "admin_insert_attractions" ON public.attractions;
 DROP POLICY IF EXISTS "admin_update_attractions" ON public.attractions;
 DROP POLICY IF EXISTS "admin_delete_attractions" ON public.attractions;
 
--- Anyone can read attractions (unauthenticated visitors browse freely)
-CREATE POLICY "public_read_attractions"
+-- Anonymous visitors: can ONLY read active attractions (does not call is_admin())
+CREATE POLICY "anon_read_attractions"
   ON public.attractions FOR SELECT
-  USING (true);
+  TO anon
+  USING (deleted_at IS NULL);
+
+-- Authenticated users: regular users read active attractions; designated admin views all
+CREATE POLICY "authenticated_read_attractions"
+  ON public.attractions FOR SELECT
+  TO authenticated
+  USING (deleted_at IS NULL OR public.is_admin());
 
 -- Only verified admin can insert, update, or delete attractions
 CREATE POLICY "admin_insert_attractions"

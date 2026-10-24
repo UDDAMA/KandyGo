@@ -17,11 +17,11 @@ export async function generateMetadata({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data: attraction } = await supabase
     .from('attractions')
-    .select('name, description')
+    .select('name, description, deleted_at')
     .eq('id', id)
     .single();
 
-  if (!attraction) {
+  if (!attraction || attraction.deleted_at) {
     return { title: 'Attraction Not Found — KandyGo' };
   }
 
@@ -49,7 +49,7 @@ export default async function AttractionDetailPage({ params }: PageProps) {
     .eq('id', numId)
     .single();
 
-  if (error || !data) {
+  if (error || !data || data.deleted_at) {
     return (
       <div className="container" style={{ padding: '5rem 1.5rem', textAlign: 'center' }}>
         <div className="card" style={{ padding: '3rem 2rem', maxWidth: '480px', margin: '0 auto' }}>

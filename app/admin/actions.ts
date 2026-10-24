@@ -193,11 +193,95 @@ export async function updateAttractionAction(id: number, prevState: any, formDat
 }
 
 /**
- * Delete Attraction Server Action (FR-021)
+ * Soft Delete Attraction Server Action (FR-021)
+ * Safely marks the attraction as deleted by setting deleted_at timestamp.
+ * The record remains in the database and is moved to the Admin Recycle Bin.
  */
-export async function deleteAttractionAction(id: number) {
+export async function softDeleteAttractionAction(id: number) {
   try {
     const { supabase } = await verifyAdminAction();
+
+    const { error } = await supabase
+      .from('attractions')
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/attractions');
+    revalidatePath(`/attractions/${id}`);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to move attraction to Recycle Bin.' };
+  }
+}
+
+// Backward-compatible alias
+export const deleteAttractionAction = softDeleteAttractionAction;
+
+/**
+ * Restore Attraction Server Action
+ * Restores a soft-deleted attraction from the Recycle Bin by clearing deleted_at.
+ */
+export async function restoreAttractionAction(id: number) {
+  try {
+    const { supabase } = await verifyAdminAction();
+
+    const { error } = await supabase
+      .from('attractions')
+      .update({
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/attractions');
+    revalidatePath(`/attractions/${id}`);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to restore attraction.' };
+  }
+}
+
+/**
+ * Permanent Delete Attraction Server Action
+ * Permanently removes an attraction from the database.
+ * Safety guard: Only allowed if the attraction has already been soft-deleted to the Recycle Bin.
+ */
+export async function permanentDeleteAttractionAction(id: number) {
+  try {
+    const { supabase } = await verifyAdminAction();
+
+    // Verify the record is in the Recycle Bin before permanent deletion
+    const { data: item, error: fetchErr } = await supabase
+      .from('attractions')
+      .select('id, name, deleted_at')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !item) {
+      return { success: false, error: 'Attraction not found.' };
+    }
+
+    if (!item.deleted_at) {
+      return {
+        success: false,
+        error: 'Safety Guard: The attraction must be moved to the Recycle Bin before permanent deletion.',
+      };
+    }
 
     const { error } = await supabase
       .from('attractions')
@@ -209,10 +293,11 @@ export async function deleteAttractionAction(id: number) {
     }
 
     revalidatePath('/attractions');
+    revalidatePath(`/attractions/${id}`);
     revalidatePath('/admin');
     revalidatePath('/');
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to delete attraction.' };
+    return { success: false, error: err.message || 'Failed to permanently delete attraction.' };
   }
 }
