@@ -26,19 +26,26 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero Section */}
-      <section
-        style={{
-          background: 'linear-gradient(135deg, #1b4332 0%, #081c15 100%)',
-          color: '#ffffff',
-          padding: '5rem 0 4.5rem',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          className="container"
-          style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}
+      <section className="hero-section">
+        {/* Layer 1: Scenic Video Background */}
+        <video
+          className="hero-video"
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/kandy-hero-poster.jpg"
+          preload="metadata"
+          aria-hidden="true"
         >
+          <source src="/kandy-hero.mp4" type="video/mp4" />
+        </video>
+
+        {/* Layer 2: Dark Semi-Transparent Scenic Overlay */}
+        <div className="hero-overlay" aria-hidden="true" />
+
+        {/* Layer 3: Foreground Content (Heading, Description, Badges, Buttons) */}
+        <div className="container hero-content">
           <div
             style={{
               display: 'inline-flex',
@@ -57,28 +64,11 @@ export default async function HomePage() {
             <span>🇱🇰</span> Kandy Day-Visit Planner
           </div>
 
-          <h1
-            style={{
-              fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.15,
-              maxWidth: '850px',
-              margin: '0 auto 1.5rem',
-            }}
-          >
+          <h1 className="hero-title">
             Discover the Heart of Sri Lanka’s Hill Capital
           </h1>
 
-          <p
-            style={{
-              fontSize: 'clamp(1rem, 2vw, 1.2rem)',
-              color: 'rgba(255, 255, 255, 0.85)',
-              maxWidth: '680px',
-              margin: '0 auto 2.5rem',
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="hero-description">
             Explore sacred heritage, highland mist, historic tea factories, and
             royal gardens. Select your stops, check visit durations, and build your
             customized 1-day travel itinerary.
