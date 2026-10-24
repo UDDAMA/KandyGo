@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS public.attractions (
   longitude               NUMERIC(10, 7)  NOT NULL,
   distance_km             NUMERIC(5, 2),     -- straight-line km from Kandy city centre
   image_url               TEXT,              -- null until an image is provided
+  secondary_image_url     TEXT,              -- null until secondary image is provided
   created_at              TIMESTAMPTZ    DEFAULT NOW(),
   updated_at              TIMESTAMPTZ    DEFAULT NOW(),
   deleted_at              TIMESTAMPTZ    DEFAULT NULL  -- null means active; timestamp indicates in Recycle Bin
@@ -353,3 +354,54 @@ ON CONFLICT (name) DO NOTHING;
 --
 -- 4. Add the same UUID to kandygo/.env.local:
 --    ADMIN_USER_ID=PASTE-ADMIN-USER-UUID-HERE
+
+-- =============================================================================
+-- SECTION 8: Storage Bucket & Policies — Attraction Images
+-- =============================================================================
+-- 1. Create the 'kandygo-attraction-images' storage bucket if it does not exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'kandygo-attraction-images',
+  'kandygo-attraction-images',
+  true,
+  5242880, -- 5 MB limit
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+
+-- 2. Storage Policies on storage.objects
+DROP POLICY IF EXISTS "public_read_attraction_images" ON storage.objects;
+CREATE POLICY "public_read_attraction_images"
+  ON storage.objects FOR SELECT
+  TO anon, authenticated
+  USING (bucket_id = 'kandygo-attraction-images');
+
+DROP POLICY IF EXISTS "admin_insert_attraction_images" ON storage.objects;
+CREATE POLICY "admin_insert_attraction_images"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'kandygo-attraction-images'
+    AND public.is_admin()
+  );
+
+DROP POLICY IF EXISTS "admin_update_attraction_images" ON storage.objects;
+CREATE POLICY "admin_update_attraction_images"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'kandygo-attraction-images'
+    AND public.is_admin()
+  );
+
+DROP POLICY IF EXISTS "admin_delete_attraction_images" ON storage.objects;
+CREATE POLICY "admin_delete_attraction_images"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'kandygo-attraction-images'
+    AND public.is_admin()
+  );

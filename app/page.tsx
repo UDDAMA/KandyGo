@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import type { Attraction } from '@/lib/types';
+import AttractionCard from '@/components/AttractionCard';
 
 export const metadata = {
   title: 'KandyGo — Local Tourist Day-Visit Planner for Kandy, Sri Lanka',
@@ -58,32 +59,13 @@ export default async function HomePage() {
 
         {/* Layer 3: Foreground Content (Heading, Description, Badges, Buttons) */}
         <div className="container hero-content">
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'rgba(255, 255, 255, 0.12)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              padding: '0.4rem 1rem',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              marginBottom: '1.5rem',
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            <span>🇱🇰</span> Kandy Day-Visit Planner
-          </div>
-
           <h1 className="hero-title">
             Discover the Heart of Sri Lanka’s Hill Capital
           </h1>
 
           <p className="hero-description">
-            Explore sacred heritage, highland mist, historic tea factories, and
-            royal gardens. Select your stops, check visit durations, and build your
-            customized 1-day travel itinerary.
+            Explore sacred Buddhist heritage, royal botanical gardens, cascading waterfalls,
+            and misty Ceylon tea estates. Build, calculate, and sequence your custom day-visit itinerary.
           </p>
 
           <div
@@ -245,6 +227,7 @@ export default async function HomePage() {
               </Link>
             </div>
 
+            {/* Exactly the same AttractionCard component used across catalog and homepage */}
             <div
               style={{
                 display: 'grid',
@@ -253,51 +236,7 @@ export default async function HomePage() {
               }}
             >
               {featuredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="card card-interactive"
-                  style={{
-                    padding: '1.75rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <span className="badge badge-primary" style={{ marginBottom: '0.75rem' }}>
-                      {item.category?.name || 'Heritage'}
-                    </span>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                      <Link href={`/attractions/${item.id}`}>{item.name}</Link>
-                    </h3>
-                    <p
-                      style={{
-                        color: 'var(--text-muted)',
-                        fontSize: '0.9rem',
-                        lineHeight: 1.5,
-                        marginBottom: '1.25rem',
-                      }}
-                    >
-                      {item.description.slice(0, 110)}…
-                    </p>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      paddingTop: '1rem',
-                      borderTop: '1px solid var(--border)',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      📍 {item.distance_km} km away
-                    </span>
-                    <Link href={`/attractions/${item.id}`} className="btn btn-secondary btn-sm">
-                      Details & Map →
-                    </Link>
-                  </div>
-                </div>
+                <AttractionCard key={item.id} attraction={item} />
               ))}
             </div>
           </div>

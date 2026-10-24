@@ -7,6 +7,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getConfiguredAdminId, verifyAdminAction } from '@/lib/auth';
+import {
+  ATTRACTION_IMAGES_BUCKET,
+  validateImageFile,
+  safelyDeleteStorageObject,
+} from '@/lib/storage';
 
 /**
  * Admin Login Server Action (FR-018)
@@ -24,7 +29,7 @@ export async function loginAction(prevState: any, formData: FormData) {
   if (!configuredAdminId) {
     return {
       success: false,
-      error: 'Server configuration error: ADMIN_USER_ID is unset or unconfigured. Access denied.',
+      error: 'Administrator authentication is temporarily unavailable (unconfigured system credentials). Please check server configuration.',
     };
   }
 
@@ -35,15 +40,15 @@ export async function loginAction(prevState: any, formData: FormData) {
   });
 
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: 'Invalid credentials. Please check your email and password.' };
   }
 
-  // Strictly verify the authenticated user matches the designated admin UUID
-  if (data.user.id !== configuredAdminId) {
+  // Authorize strictly against the designated ADMIN_USER_ID
+  if (!data?.user || data.user.id !== configuredAdminId) {
     await supabase.auth.signOut();
     return {
       success: false,
-      error: 'Account authenticated, but it is not authorized as the project administrator.',
+      error: 'Access denied: Your account is not authorized as the designated site administrator.',
     };
   }
 
@@ -51,7 +56,7 @@ export async function loginAction(prevState: any, formData: FormData) {
 }
 
 /**
- * Admin Logout Server Action
+ * Admin Logout Server Action (FR-022)
  */
 export async function logoutAction() {
   const supabase = await createServerSupabaseClient();
@@ -60,9 +65,75 @@ export async function logoutAction() {
 }
 
 /**
+ * Upload Attraction Image Action
+ * Uploads an image to the existing 'kandygo-attraction-images' bucket.
+ * Restricts uploads strictly to the authenticated administrator identity.
+ * Validates file type (JPEG, PNG, WebP, AVIF) and size (<= 5MB).
+ */
+export async function uploadAttractionImageAction(formData: FormData) {
+  try {
+    const { supabase } = await verifyAdminAction();
+
+    const file = formData.get('file') as File;
+    const slot = (formData.get('slot') as string) || 'main';
+    const attractionId = (formData.get('attraction_id') as string)?.trim() || 'draft';
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const cleanSlot = slot === 'secondary' ? 'secondary' : 'main';
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const objectPath = `attractions/${attractionId}/${cleanSlot}-${timestamp}-${randomSuffix}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(ATTRACTION_IMAGES_BUCKET)
+      .upload(objectPath, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return { success: false, error: `Storage upload failed: ${uploadError.message}` };
+    }
+
+    const { data: publicData } = supabase.storage
+      .from(ATTRACTION_IMAGES_BUCKET)
+      .getPublicUrl(objectPath);
+
+    return {
+      success: true,
+      publicUrl: publicData.publicUrl,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Image upload failed.' };
+  }
+}
+
+/**
+ * Delete Unsaved Draft Image Action
+ * Removes an uncommitted image object if the admin removes or replaces it before saving the form.
+ */
+export async function deleteDraftImageAction(url: string) {
+  try {
+    const { supabase } = await verifyAdminAction();
+    await safelyDeleteStorageObject(supabase, url);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Create Attraction Server Action (FR-019)
  */
 export async function createAttractionAction(prevState: any, formData: FormData) {
+  let image_url: string | null = null;
+  let secondary_image_url: string | null = null;
+
   try {
     const { supabase } = await verifyAdminAction();
 
@@ -85,7 +156,8 @@ export async function createAttractionAction(prevState: any, formData: FormData)
     const distance_km = formData.get('distance_km')
       ? parseFloat(formData.get('distance_km') as string)
       : null;
-    const image_url = (formData.get('image_url') as string)?.trim() || null;
+    image_url = (formData.get('image_url') as string)?.trim() || null;
+    secondary_image_url = (formData.get('secondary_image_url') as string)?.trim() || null;
 
     if (!name || isNaN(category_id) || !description || isNaN(latitude) || isNaN(longitude)) {
       return { success: false, error: 'Please fill in all required fields (Name, Category, Description, Latitude, Longitude).' };
@@ -106,11 +178,15 @@ export async function createAttractionAction(prevState: any, formData: FormData)
         longitude,
         distance_km,
         image_url,
+        secondary_image_url,
       })
       .select('id')
       .single();
 
     if (error) {
+      // Safe Cleanup: If the database insert fails, clean up the newly uploaded draft images
+      if (image_url) await safelyDeleteStorageObject(supabase, image_url);
+      if (secondary_image_url) await safelyDeleteStorageObject(supabase, secondary_image_url);
       return { success: false, error: error.message };
     }
 
@@ -127,10 +203,30 @@ export async function createAttractionAction(prevState: any, formData: FormData)
 
 /**
  * Update Attraction Server Action (FR-020)
+ * Safely handles image replacements and cleanup:
+ * Old storage objects are only deleted AFTER the database update succeeds,
+ * and only if no other attraction record references the URL.
  */
 export async function updateAttractionAction(id: number, prevState: any, formData: FormData) {
+  let oldMainUrl: string | null = null;
+  let oldSecondaryUrl: string | null = null;
+  let image_url: string | null = null;
+  let secondary_image_url: string | null = null;
+
   try {
     const { supabase } = await verifyAdminAction();
+
+    // 1. Fetch current attraction to identify previously attached image URLs
+    const { data: currentItem } = await supabase
+      .from('attractions')
+      .select('image_url, secondary_image_url')
+      .eq('id', id)
+      .single();
+
+    if (currentItem) {
+      oldMainUrl = currentItem.image_url;
+      oldSecondaryUrl = currentItem.secondary_image_url;
+    }
 
     const name = (formData.get('name') as string)?.trim();
     const category_id = parseInt(formData.get('category_id') as string, 10);
@@ -151,12 +247,14 @@ export async function updateAttractionAction(id: number, prevState: any, formDat
     const distance_km = formData.get('distance_km')
       ? parseFloat(formData.get('distance_km') as string)
       : null;
-    const image_url = (formData.get('image_url') as string)?.trim() || null;
+    image_url = (formData.get('image_url') as string)?.trim() || null;
+    secondary_image_url = (formData.get('secondary_image_url') as string)?.trim() || null;
 
     if (!name || isNaN(category_id) || !description || isNaN(latitude) || isNaN(longitude)) {
       return { success: false, error: 'Please fill in all required fields.' };
     }
 
+    // 2. Perform database update
     const { error } = await supabase
       .from('attractions')
       .update({
@@ -172,12 +270,30 @@ export async function updateAttractionAction(id: number, prevState: any, formDat
         longitude,
         distance_km,
         image_url,
+        secondary_image_url,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
     if (error) {
+      // Safe Cleanup: If the database update fails, preserve existing images;
+      // clean up any new draft images that failed to save.
+      if (image_url && image_url !== oldMainUrl && image_url !== oldSecondaryUrl) {
+        await safelyDeleteStorageObject(supabase, image_url);
+      }
+      if (secondary_image_url && secondary_image_url !== oldSecondaryUrl && secondary_image_url !== oldMainUrl) {
+        await safelyDeleteStorageObject(supabase, secondary_image_url);
+      }
       return { success: false, error: error.message };
+    }
+
+    // 3. Post-update storage cleanup:
+    // Only delete old storage objects if the database update succeeded AND the old object is no longer referenced.
+    if (oldMainUrl && oldMainUrl !== image_url && oldMainUrl !== secondary_image_url) {
+      await safelyDeleteStorageObject(supabase, oldMainUrl);
+    }
+    if (oldSecondaryUrl && oldSecondaryUrl !== secondary_image_url && oldSecondaryUrl !== image_url) {
+      await safelyDeleteStorageObject(supabase, oldSecondaryUrl);
     }
 
     revalidatePath('/attractions');
@@ -195,7 +311,7 @@ export async function updateAttractionAction(id: number, prevState: any, formDat
 /**
  * Soft Delete Attraction Server Action (FR-021)
  * Safely marks the attraction as deleted by setting deleted_at timestamp.
- * The record remains in the database and is moved to the Admin Recycle Bin.
+ * The record and its images remain preserved in the database and can be restored.
  */
 export async function softDeleteAttractionAction(id: number) {
   try {
@@ -258,7 +374,7 @@ export async function restoreAttractionAction(id: number) {
 
 /**
  * Permanent Delete Attraction Server Action
- * Permanently removes an attraction from the database.
+ * Permanently removes an attraction and cleans up its storage images if unreferenced elsewhere.
  * Safety guard: Only allowed if the attraction has already been soft-deleted to the Recycle Bin.
  */
 export async function permanentDeleteAttractionAction(id: number) {
@@ -268,7 +384,7 @@ export async function permanentDeleteAttractionAction(id: number) {
     // Verify the record is in the Recycle Bin before permanent deletion
     const { data: item, error: fetchErr } = await supabase
       .from('attractions')
-      .select('id, name, deleted_at')
+      .select('id, name, deleted_at, image_url, secondary_image_url')
       .eq('id', id)
       .single();
 
@@ -290,6 +406,14 @@ export async function permanentDeleteAttractionAction(id: number) {
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // Clean up stored images if they belong to kandygo-attraction-images and are not referenced elsewhere
+    if (item.image_url) {
+      await safelyDeleteStorageObject(supabase, item.image_url);
+    }
+    if (item.secondary_image_url) {
+      await safelyDeleteStorageObject(supabase, item.secondary_image_url);
     }
 
     revalidatePath('/attractions');
