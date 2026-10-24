@@ -14,16 +14,28 @@ export const metadata = {
 export default async function AttractionsPage() {
   const supabase = await createServerSupabaseClient();
 
-  // Fetch categories and attractions in parallel from Supabase
-  const [categoriesRes, attractionsRes] = await Promise.all([
-    supabase.from('categories').select('*').order('name'),
-    supabase
+  // Fetch categories and active attractions from Supabase
+  let attractionsRes = await supabase
+    .from('attractions')
+    .select(`
+      *,
+      category:categories(id, name, description)
+    `)
+    .is('deleted_at', null)
+    .order('name');
+
+  if (attractionsRes.error && attractionsRes.error.message?.includes('deleted_at')) {
+    attractionsRes = await supabase
       .from('attractions')
       .select(`
         *,
         category:categories(id, name, description)
       `)
-      .order('name'),
+      .order('name');
+  }
+
+  const [categoriesRes] = await Promise.all([
+    supabase.from('categories').select('*').order('name'),
   ]);
 
   // Handle any database retrieval failure gracefully
@@ -51,7 +63,8 @@ export default async function AttractionsPage() {
     );
   }
 
-  const attractions = (attractionsRes.data || []) as Attraction[];
+  const rawAttractions = (attractionsRes.data || []) as Attraction[];
+  const attractions = rawAttractions.filter((item) => !item.deleted_at);
   const categories = (categoriesRes.data || []) as Category[];
 
   return <AttractionCatalog attractions={attractions} categories={categories} />;

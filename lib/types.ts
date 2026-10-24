@@ -25,6 +25,7 @@ export interface Attraction {
   image_url: string | null;
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string | null; // null if active; timestamp if in Recycle Bin
 }
 
 // A single item stored in the visit plan (localStorage).
@@ -37,4 +38,5 @@ export interface PlanItem {
   visit_duration_minutes: number | null;
   entrance_fee_lkr: number | null;
   distance_km: number | null;
+  deleted_at?: string | null;
 }

@@ -13,15 +13,27 @@ export const metadata = {
 
 export default async function HomePage() {
   const supabase = await createServerSupabaseClient();
-  const { data: featured } = await supabase
+  let featuredRes = await supabase
     .from('attractions')
     .select(`
       *,
       category:categories(id, name, description)
     `)
+    .is('deleted_at', null)
     .limit(3);
 
-  const featuredItems = (featured || []) as unknown as Attraction[];
+  if (featuredRes.error && featuredRes.error.message?.includes('deleted_at')) {
+    featuredRes = await supabase
+      .from('attractions')
+      .select(`
+        *,
+        category:categories(id, name, description)
+      `)
+      .limit(3);
+  }
+
+  const rawItems = (featuredRes.data || []) as unknown as Attraction[];
+  const featuredItems = rawItems.filter((item) => !item.deleted_at);
 
   return (
     <div>
